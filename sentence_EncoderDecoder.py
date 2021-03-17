@@ -63,18 +63,17 @@ class EncoderDecoder(object):
         return [self.i2w[id] for id in sentence]
     
     if __name__ == '__main__':
-        from pyknp import Juman
+        import MeCab
         import pandas as pd
+        m = MeCab.Tagger('-Owakati -d /usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd')
         df = pd.read_csv("data/lyrics.csv")
-        juman = Juman()
         for text in df['lyrics']:
+            text = text.replace('　','')
+            print(text)
             texts = text.split("/")
             for i in texts:
                 if i == "":
                     continue
-                print(i)
-                m = MeCab.Tagger('-d /usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd')
-                result = juman.analysis(i)
-                result = [mrph.midasi for mrph in result.mrph_list()]
+                result = m.parse(i).strip().split(" ")
                 print(result)
         

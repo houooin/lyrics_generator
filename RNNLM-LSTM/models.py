@@ -3,35 +3,32 @@
 """
 import torch
 import torch.nn as nn
-# Encoderクラス
-class Encoder(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim):
-        super(Encoder, self).__init__()
+import torch.nn.functional as F
+import torch.optim as optim
+
+
+class RNNLM(nn.Module):
+    def __init__(self, embedding_dim, hidden_dim, vocab_size, batch_size=50, num_layers=1):
+        super(RNNLM, self).__init__()
+        self.batch_size = batch_size
+        self.num_layers = num_layers
         self.hidden_dim = hidden_dim
-        self.word_embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
 
-    def forward(self, sequence):
-        embedding = self.word_embeddings(sequence)
-        # Many to Oneなので、第２戻り値を使う
-        _, state = self.lstm(embedding)
-        # state = (h, c)
-        return state
+        self.word_embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
+        self.dropout = nn.Dropout(p=0.5)
 
-# Decoderクラス
-class Decoder(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim):
-        super(Decoder, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.word_embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
-        # LSTMの128次元の隠れ層を13次元に変換する全結合層
-        self.hidden2linear = nn.Linear(hidden_dim, vocab_size)
+        self.gru = nn.LSTM(embedding_dim, hidden_dim, batch_first=True, num_layers=self.num_layers)
 
-    def forward(self, sequence, encoder_state):
-        embedding = self.word_embeddings(sequence)
-        # Many to Manyなので、第１戻り値を使う。
-        # 第２戻り値は推論時に次の文字を生成するときに使います。
-        output, state = self.lstm(embedding, encoder_state)
-        output = self.hidden2linear(output)
-        return output, state
+        self.output = nn.Linear(hidden_dim, vocab_size)
+
+    def init_hidden(self):
+        self.hidden_state = torch.zeros(self.num_layers, self.batch_size, self.hidden_dim, device=device)
+
+    def forward(self, sentence):
+        embed = self.word_embeddings(sentence) # batch_len x sequence_length x embedding_dim
+        drop_out = self.dropout(embed)
+        if drop_out.dim() == 2:
+            drop_out = torch.unsqueeze(drop_out, 1)
+        gru_out, self.hidden_state = self.gru(drop_out, self.hidden_state)# batch_len x sequence_length x hidden_dim
+        gru_out = gru_out.contiguous()
+        return self.output(gru_out)

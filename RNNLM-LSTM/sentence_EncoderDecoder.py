@@ -65,41 +65,5 @@ class EncoderDecoder(object):
     def decode(self, sentence):
         return [self.i2w[id] for id in sentence]
 
-def batchfy(sentences_id, batch_size = 50):
-    in_batch = []
-    out_batch = []
-    i = 1
-    for sentence_id in sentences_id:
-        inp = torch.tensor(sentence_id[:-1])
-        out = torch.tensor(sentence_id[1:])
-        in_batch.append(inp)
-        out_batch.append(out)
-    in_batch = rnn.pad_sequence(in_batch, batch_first=True)
-    batch_in = torch.split(in_batch, 50, dim=0)
-    in_batch = rnn.pad_sequence(batch_in, batch_first=True)
-    out_batch = rnn.pad_sequence(out_batch, batch_first=True)
-    batch_out = torch.split(out_batch, 50, dim=0)
-    out_batch = rnn.pad_sequence(batch_out, batch_first=True)
-    return in_batch, out_batch
-# if __name__ == '__main__':
-import MeCab
-import pandas as pd
-import torch.nn.utils.rnn as rnn
-m = MeCab.Tagger('-Owakati -d /usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd')
-df = pd.read_csv("data/lyrics.csv")
-sentences = []
-converter = EncoderDecoder()
-for text in df['lyrics']:
-    text = text.replace('　','')
-    texts = text.split("/")
-    for i in texts:
-        if i == "":
-            continue
-        result = m.parse(i).strip().split(" ")
-        sentences.append(result)
-converter.fit(sentences)
-sentences_id = converter.transform(sentences, bos=True, eos=True)
-in_batch, out_batch = batchfy(sentences_id, batch_size = 50)
-print(in_batch.size())
-print(out_batch.size())
+
     
